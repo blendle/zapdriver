@@ -9,7 +9,7 @@ import (
 //
 // It's a shortcut for NewProductionConfig().Build(...Option).
 func NewProduction(options ...zap.Option) (*zap.Logger, error) {
-	options = append(options, withCore())
+	options = append(options, WrapCore())
 
 	return NewProductionConfig().Build(options...)
 }
@@ -19,7 +19,7 @@ func NewProduction(options ...zap.Option) (*zap.Logger, error) {
 //
 // It's a shortcut for NewDevelopmentConfig().Build(...Option).
 func NewDevelopment(options ...zap.Option) (*zap.Logger, error) {
-	options = append(options, withCore())
+	options = append(options, WrapCore())
 
 	return NewDevelopmentConfig().Build(options...)
 }

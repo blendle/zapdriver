@@ -256,7 +256,6 @@ There are two use-cases which require this core:
 When building a logger, you can inject the Zapdriver core as follows:
 
 ```golang
-zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-  return &zapdriver.Core{core}
-})
+config := &zap.Config{}
+logger, err := config.Build(zapdriver.WrapCore())
 ```
