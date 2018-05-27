@@ -132,7 +132,7 @@ func (c *core) withLabels(fields []zapcore.Field) []zapcore.Field {
 func (c *core) withSourceLocation(ent zapcore.Entry, fields []zapcore.Field) []zapcore.Field {
 	// If the source location was manually set, don't overwrite it
 	for i := range fields {
-		if fields[i].Key == "sourceLocation" {
+		if fields[i].Key == sourceKey {
 			return fields
 		}
 	}

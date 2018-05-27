@@ -5,6 +5,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const operationKey = "logging.googleapis.com/operation"
+
 // Operation adds the correct Stackdriver "operation" field.
 //
 // Additional information about a potentially long-running operation with which
@@ -19,7 +21,7 @@ func Operation(id, producer string, first, last bool) zap.Field {
 		Last:     last,
 	}
 
-	return zap.Object("operation", op)
+	return zap.Object(operationKey, op)
 }
 
 // operation is the complete payload that can be interpreted by Stackdriver as

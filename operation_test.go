@@ -13,5 +13,5 @@ func TestOperation(t *testing.T) {
 	op := &operation{ID: "id", Producer: "producer", First: true, Last: false}
 	field := Operation("id", "producer", true, false)
 
-	assert.Equal(t, zap.Object("operation", op), field)
+	assert.Equal(t, zap.Object(operationKey, op), field)
 }
