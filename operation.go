@@ -24,6 +24,24 @@ func Operation(id, producer string, first, last bool) zap.Field {
 	return zap.Object(operationKey, op)
 }
 
+// OperationStart is a convenience function for `Operation`. It should be called
+// for the first operation log.
+func OperationStart(id, producer string) zap.Field {
+	return Operation(id, producer, true, false)
+}
+
+// OperationCont is a convenience function for `Operation`. It should be called
+// for any non-start/end operation log.
+func OperationCont(id, producer string) zap.Field {
+	return Operation(id, producer, false, false)
+}
+
+// OperationEnd is a convenience function for `Operation`. It should be called
+// for the last operation log.
+func OperationEnd(id, producer string) zap.Field {
+	return Operation(id, producer, false, true)
+}
+
 // operation is the complete payload that can be interpreted by Stackdriver as
 // an operation.
 type operation struct {

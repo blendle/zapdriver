@@ -196,6 +196,15 @@ logger.Debug("Progressing.", zapdriver.Operation("3g4d3g", "my-app", false, fals
 logger.Info("Done.", zapdriver.Operation("3g4d3g", "my-app", false, true))
 ```
 
+Instead of defining the "start" and "end" booleans, you can also use these three
+convenience functions:
+
+```golang
+OperationStart(id, producer string) zap.Field
+OperationCont(id, producer string) zap.Field
+OperationEnd(id, producer string) zap.Field
+```
+
 ### Pre-configured Stackdriver-optimized encoder
 
 The Stackdriver encoder maps all Zap log levels to the appropriate

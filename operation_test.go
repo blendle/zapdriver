@@ -15,3 +15,30 @@ func TestOperation(t *testing.T) {
 
 	assert.Equal(t, zap.Object(operationKey, op), field)
 }
+
+func TestOperationStart(t *testing.T) {
+	t.Parallel()
+
+	op := &operation{ID: "id", Producer: "producer", First: true, Last: false}
+	field := OperationStart("id", "producer")
+
+	assert.Equal(t, zap.Object(operationKey, op), field)
+}
+
+func TestOperationCont(t *testing.T) {
+	t.Parallel()
+
+	op := &operation{ID: "id", Producer: "producer", First: false, Last: false}
+	field := OperationCont("id", "producer")
+
+	assert.Equal(t, zap.Object(operationKey, op), field)
+}
+
+func TestOperationEnd(t *testing.T) {
+	t.Parallel()
+
+	op := &operation{ID: "id", Producer: "producer", First: false, Last: true}
+	field := OperationEnd("id", "producer")
+
+	assert.Equal(t, zap.Object(operationKey, op), field)
+}
