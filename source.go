@@ -8,11 +8,13 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const sourceKey = "logging.googleapis.com/sourceLocation"
+
 // SourceLocation adds the correct Stackdriver "SourceLocation" field.
 //
 // see: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#LogEntrySourceLocation
 func SourceLocation(pc uintptr, file string, line int, ok bool) zap.Field {
-	return zap.Object("sourceLocation", newSource(pc, file, line, ok))
+	return zap.Object(sourceKey, newSource(pc, file, line, ok))
 }
 
 // source is the source code location information associated with the log entry,

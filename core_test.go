@@ -54,19 +54,19 @@ func TestWithSourceLocation(t *testing.T) {
 
 	want := []zap.Field{
 		zap.String("hello", "world"),
-		zap.Object("sourceLocation", newSource(pc, file, line, ok)),
+		zap.Object(sourceKey, newSource(pc, file, line, ok)),
 	}
 
 	assert.Equal(t, want, (&core{}).withSourceLocation(ent, fields))
 }
 
 func TestWithSourceLocation_DoesNotOverwrite(t *testing.T) {
-	fields := []zap.Field{zap.String("sourceLocation", "world")}
+	fields := []zap.Field{zap.String(sourceKey, "world")}
 	pc, file, line, ok := runtime.Caller(0)
 	ent := zapcore.Entry{Caller: zapcore.NewEntryCaller(pc, file, line, ok)}
 
 	want := []zap.Field{
-		zap.String("sourceLocation", "world"),
+		zap.String(sourceKey, "world"),
 	}
 
 	assert.Equal(t, want, (&core{}).withSourceLocation(ent, fields))
