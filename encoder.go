@@ -33,7 +33,7 @@ var logLevelSeverity = map[zapcore.Level]string{
 // encoderConfig is the default encoder configuration, slightly tweaked to use
 // the correct fields for Stackdriver to parse them.
 var encoderConfig = zapcore.EncoderConfig{
-	TimeKey:        "timestamp",
+	TimeKey:        "time",
 	LevelKey:       "severity",
 	NameKey:        "logger",
 	CallerKey:      "caller",
