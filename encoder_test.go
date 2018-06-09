@@ -2,6 +2,7 @@ package zapdriver_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/blendle/zapdriver"
 	"github.com/stretchr/testify/assert"
@@ -34,4 +35,16 @@ func TestEncodeLevel(t *testing.T) {
 			assert.Equal(t, enc.elems[0].(string), tt.want)
 		})
 	}
+}
+
+func TestRFC3339NanoTimeEncoder(t *testing.T) {
+	t.Parallel()
+
+	ts := time.Date(2018, 4, 9, 12, 43, 12, 678359, time.UTC)
+
+	enc := &sliceArrayEncoder{}
+	zapdriver.RFC3339NanoTimeEncoder(ts, enc)
+
+	require.Len(t, enc.elems, 1)
+	assert.Equal(t, ts.Format(time.RFC3339Nano), enc.elems[0].(string))
 }

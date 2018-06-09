@@ -1,6 +1,10 @@
 package zapdriver
 
-import "go.uber.org/zap/zapcore"
+import (
+	"time"
+
+	"go.uber.org/zap/zapcore"
+)
 
 // logLevelSeverity maps the Zap log levels to the correct level names as
 // defined by Stackdriver.
@@ -37,7 +41,7 @@ var encoderConfig = zapcore.EncoderConfig{
 	StacktraceKey:  "stacktrace",
 	LineEnding:     zapcore.DefaultLineEnding,
 	EncodeLevel:    EncodeLevel,
-	EncodeTime:     zapcore.ISO8601TimeEncoder,
+	EncodeTime:     RFC3339NanoTimeEncoder,
 	EncodeDuration: zapcore.SecondsDurationEncoder,
 	EncodeCaller:   zapcore.ShortCallerEncoder,
 }
@@ -46,4 +50,10 @@ var encoderConfig = zapcore.EncoderConfig{
 // level.
 func EncodeLevel(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(logLevelSeverity[l])
+}
+
+// RFC3339NanoTimeEncoder serializes a time.Time to an RFC3339Nano-formatted
+// string with nanoseconds precision.
+func RFC3339NanoTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString(t.Format(time.RFC3339Nano))
 }
