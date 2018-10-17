@@ -19,17 +19,20 @@ func TestWithLabels(t *testing.T) {
 		Label("two", "value"),
 	}
 
+	labels := newLabels()
+	labels.store = map[string]string{"one": "value", "two": "value"}
+
 	want := []zap.Field{
 		zap.String("hello", "world"),
-		zap.Object("labels", labels(map[string]string{"one": "value", "two": "value"})),
+		zap.Object("labels", labels),
 	}
 
 	assert.Equal(t, want, (&core{}).withLabels(fields))
 }
 
 func TestExtractLabels(t *testing.T) {
-	var lbls labels
-	c := &core{zapcore.NewNopCore(), labels{}, labels{}}
+	var lbls *labels
+	c := &core{zapcore.NewNopCore(), newLabels(), newLabels()}
 
 	fields := []zap.Field{
 		zap.String("hello", "world"),
@@ -39,9 +42,12 @@ func TestExtractLabels(t *testing.T) {
 
 	lbls, fields = c.extractLabels(fields)
 
-	require.Len(t, lbls, 2)
-	assert.Equal(t, "world", lbls["one"])
-	assert.Equal(t, "worlds", lbls["two"])
+	require.Len(t, lbls.store, 2)
+
+	lbls.mutex.RLock()
+	assert.Equal(t, "world", lbls.store["one"])
+	assert.Equal(t, "worlds", lbls.store["two"])
+	lbls.mutex.RUnlock()
 
 	require.Len(t, fields, 1)
 	assert.Equal(t, zap.String("hello", "world"), fields[0])
@@ -86,8 +92,11 @@ func TestWithSourceLocation_OnlyWhenDefined(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
+	temp := newLabels()
+	temp.store = map[string]string{"one": "1", "two": "2"}
+
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := &core{debugcore, labels{}, labels{}}
+	core := &core{debugcore, newLabels(), temp}
 
 	fields := []zap.Field{
 		zap.String("hello", "world"),
@@ -103,7 +112,7 @@ func TestWrite(t *testing.T) {
 
 func TestWithAndWrite(t *testing.T) {
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := zapcore.Core(&core{debugcore, labels{}, labels{}})
+	core := zapcore.Core(&core{debugcore, newLabels(), newLabels()})
 
 	core = core.With([]zapcore.Field{Label("one", "world")})
 	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
@@ -117,7 +126,7 @@ func TestWithAndWrite(t *testing.T) {
 
 func TestWithAndWrite_MultipleEntries(t *testing.T) {
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := zapcore.Core(&core{debugcore, labels{}, labels{}})
+	core := zapcore.Core(&core{debugcore, newLabels(), newLabels()})
 
 	core = core.With([]zapcore.Field{Label("one", "world")})
 	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
@@ -137,4 +146,23 @@ func TestWithAndWrite_MultipleEntries(t *testing.T) {
 
 	assert.Equal(t, "world", labels["one"])
 	assert.Equal(t, "worlds", labels["three"])
+}
+
+func TestAllLabels(t *testing.T) {
+	perm := newLabels()
+	perm.store = map[string]string{"one": "1", "two": "2", "three": "3"}
+
+	temp := newLabels()
+	temp.store = map[string]string{"one": "ONE", "three": "THREE"}
+
+	core := &core{zapcore.NewNopCore(), perm, temp}
+
+	out := core.allLabels()
+	require.Len(t, out.store, 3)
+
+	out.mutex.RLock()
+	assert.Equal(t, out.store["one"], "ONE")
+	assert.Equal(t, out.store["two"], "2")
+	assert.Equal(t, out.store["three"], "THREE")
+	out.mutex.RUnlock()
 }
