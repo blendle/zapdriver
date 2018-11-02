@@ -42,11 +42,13 @@ func (c *core) With(fields []zap.Field) zapcore.Core {
 	var lbls *labels
 	lbls, fields = c.extractLabels(fields)
 
-	lbls.mutex.Lock()
+	lbls.mutex.RLock()
+	c.permLabels.mutex.Lock()
 	for k, v := range lbls.store {
 		c.permLabels.store[k] = v
 	}
-	lbls.mutex.Unlock()
+	c.permLabels.mutex.Unlock()
+	lbls.mutex.RUnlock()
 
 	return &core{c.Core.With(fields), c.permLabels, newLabels()}
 }
@@ -69,11 +71,13 @@ func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	var lbls *labels
 	lbls, fields = c.extractLabels(fields)
 
-	lbls.mutex.Lock()
+	lbls.mutex.RLock()
+	c.tempLabels.mutex.Lock()
 	for k, v := range lbls.store {
 		c.tempLabels.store[k] = v
 	}
-	lbls.mutex.Unlock()
+	c.tempLabels.mutex.Unlock()
+	lbls.mutex.RUnlock()
 
 	fields = append(fields, labelsField(c.allLabels()))
 	fields = c.withSourceLocation(ent, fields)
@@ -92,13 +96,17 @@ func (c *core) allLabels() *labels {
 	lbls := newLabels()
 
 	lbls.mutex.Lock()
+	c.permLabels.mutex.RLock()
 	for k, v := range c.permLabels.store {
 		lbls.store[k] = v
 	}
+	c.permLabels.mutex.RUnlock()
 
+	c.tempLabels.mutex.RLock()
 	for k, v := range c.tempLabels.store {
 		lbls.store[k] = v
 	}
+	c.tempLabels.mutex.RUnlock()
 	lbls.mutex.Unlock()
 
 	return lbls
