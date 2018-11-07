@@ -58,6 +58,12 @@ func (l *labels) Add(key, value string) {
 	l.mutex.Unlock()
 }
 
+func (l *labels) reset() {
+	l.mutex.Lock()
+	l.store = map[string]string{}
+	l.mutex.Unlock()
+}
+
 func (l labels) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	l.mutex.RLock()
 	for k, v := range l.store {

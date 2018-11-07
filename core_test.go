@@ -2,6 +2,7 @@ package zapdriver
 
 import (
 	"runtime"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -106,6 +107,33 @@ func TestWrite(t *testing.T) {
 
 	err := core.Write(zapcore.Entry{}, fields)
 	require.NoError(t, err)
+
+	assert.NotNil(t, logs.All()[0].ContextMap()["labels"])
+}
+
+func TestWriteConcurrent(t *testing.T) {
+	temp := newLabels()
+	temp.store = map[string]string{"one": "1", "two": "2"}
+	goRoutines := 8
+	counter := int32(10000)
+
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := &core{debugcore, newLabels(), temp}
+
+	fields := []zap.Field{
+		zap.String("hello", "world"),
+		Label("one", "value"),
+		Label("two", "value"),
+	}
+
+	for i := 0; i < goRoutines; i++ {
+		go func() {
+			for atomic.AddInt32(&counter, -1) > 0 {
+				err := core.Write(zapcore.Entry{}, fields)
+				require.NoError(t, err)
+			}
+		}()
+	}
 
 	assert.NotNil(t, logs.All()[0].ContextMap()["labels"])
 }
