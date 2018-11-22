@@ -82,7 +82,7 @@ func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	fields = append(fields, labelsField(c.allLabels()))
 	fields = c.withSourceLocation(ent, fields)
 
-	c.tempLabels = newLabels()
+	c.tempLabels.reset()
 
 	return c.Core.Write(ent, fields)
 }
