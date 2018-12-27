@@ -2,6 +2,7 @@ package zapdriver
 
 import (
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -126,14 +127,18 @@ func TestWriteConcurrent(t *testing.T) {
 		Label("two", "value"),
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(goRoutines)
 	for i := 0; i < goRoutines; i++ {
 		go func() {
+			defer wg.Done()
 			for atomic.AddInt32(&counter, -1) > 0 {
 				err := core.Write(zapcore.Entry{}, fields)
 				require.NoError(t, err)
 			}
 		}()
 	}
+	wg.Wait()
 
 	assert.NotNil(t, logs.All()[0].ContextMap()["labels"])
 }
