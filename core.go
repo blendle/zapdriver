@@ -7,6 +7,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type DriverConfig struct {
+	ReportAllErrors bool
+}
+
 // Core is a zapdriver specific core wrapped around the default zap core. It
 // allows to merge all defined labels
 type core struct {
@@ -27,13 +31,31 @@ type core struct {
 	// them back in the proper format right before we call `Write` on the original
 	// Zap core.
 	tempLabels *labels
+
+	reportAllErrors bool
 }
 
 // WrapCore returns a `zap.Option` that wraps the default core with the
 // zapdriver one.
 func WrapCore() zap.Option {
 	return zap.WrapCore(func(c zapcore.Core) zapcore.Core {
-		return &core{c, newLabels(), newLabels()}
+		return &core{
+			Core:       c,
+			permLabels: newLabels(),
+			tempLabels: newLabels()}
+	})
+}
+
+// WrapCoreWithConfig returns a `zap.Option` that wraps the default core with the
+// configured zapdriver one.
+func WrapCoreWithConfig(config DriverConfig) zap.Option {
+	return zap.WrapCore(func(c zapcore.Core) zapcore.Core {
+		return &core{
+			Core:            c,
+			permLabels:      newLabels(),
+			tempLabels:      newLabels(),
+			reportAllErrors: config.ReportAllErrors,
+		}
 	})
 }
 
@@ -50,7 +72,12 @@ func (c *core) With(fields []zap.Field) zapcore.Core {
 	c.permLabels.mutex.Unlock()
 	lbls.mutex.RUnlock()
 
-	return &core{c.Core.With(fields), c.permLabels, newLabels()}
+	return &core{
+		Core:            c.Core.With(fields),
+		permLabels:      c.permLabels,
+		tempLabels:      newLabels(),
+		reportAllErrors: c.reportAllErrors,
+	}
 }
 
 // Check determines whether the supplied Entry should be logged (using the
@@ -81,6 +108,9 @@ func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 
 	fields = append(fields, labelsField(c.allLabels()))
 	fields = c.withSourceLocation(ent, fields)
+	if c.reportAllErrors && ent.Level.Enabled(zapcore.ErrorLevel) {
+		fields = c.withErrorReport(ent, fields)
+	}
 
 	c.tempLabels.reset()
 
@@ -161,4 +191,19 @@ func (c *core) withSourceLocation(ent zapcore.Entry, fields []zapcore.Field) []z
 	}
 
 	return append(fields, SourceLocation(ent.Caller.PC, ent.Caller.File, ent.Caller.Line, true))
+}
+
+func (c *core) withErrorReport(ent zapcore.Entry, fields []zapcore.Field) []zapcore.Field {
+	// If the error report was manually set, don't overwrite it
+	for i := range fields {
+		if fields[i].Key == contextKey {
+			return fields
+		}
+	}
+
+	if !ent.Caller.Defined {
+		return fields
+	}
+
+	return append(fields, ErrorReport(ent.Caller.PC, ent.Caller.File, ent.Caller.Line, true))
 }

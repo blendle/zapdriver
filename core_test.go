@@ -34,7 +34,11 @@ func TestWithLabels(t *testing.T) {
 
 func TestExtractLabels(t *testing.T) {
 	var lbls *labels
-	c := &core{zapcore.NewNopCore(), newLabels(), newLabels()}
+	c := &core{
+		Core:       zapcore.NewNopCore(),
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+	}
 
 	fields := []zap.Field{
 		zap.String("hello", "world"),
@@ -98,7 +102,11 @@ func TestWrite(t *testing.T) {
 	temp.store = map[string]string{"one": "1", "two": "2"}
 
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := &core{debugcore, newLabels(), temp}
+	core := &core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: temp,
+	}
 
 	fields := []zap.Field{
 		zap.String("hello", "world"),
@@ -119,7 +127,11 @@ func TestWriteConcurrent(t *testing.T) {
 	counter := int32(10000)
 
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := &core{debugcore, newLabels(), temp}
+	core := &core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: temp,
+	}
 
 	fields := []zap.Field{
 		zap.String("hello", "world"),
@@ -145,7 +157,11 @@ func TestWriteConcurrent(t *testing.T) {
 
 func TestWithAndWrite(t *testing.T) {
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := zapcore.Core(&core{debugcore, newLabels(), newLabels()})
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+	})
 
 	core = core.With([]zapcore.Field{Label("one", "world")})
 	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
@@ -159,7 +175,11 @@ func TestWithAndWrite(t *testing.T) {
 
 func TestWithAndWrite_MultipleEntries(t *testing.T) {
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := zapcore.Core(&core{debugcore, newLabels(), newLabels()})
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+	})
 
 	core = core.With([]zapcore.Field{Label("one", "world")})
 	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
@@ -188,7 +208,11 @@ func TestAllLabels(t *testing.T) {
 	temp := newLabels()
 	temp.store = map[string]string{"one": "ONE", "three": "THREE"}
 
-	core := &core{zapcore.NewNopCore(), perm, temp}
+	core := &core{
+		Core:       zapcore.NewNopCore(),
+		permLabels: perm,
+		tempLabels: temp,
+	}
 
 	out := core.allLabels()
 	require.Len(t, out.store, 3)
