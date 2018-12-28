@@ -97,6 +97,44 @@ func TestWithSourceLocation_OnlyWhenDefined(t *testing.T) {
 	assert.Equal(t, want, (&core{}).withSourceLocation(ent, fields))
 }
 
+func TestWithErrorReport(t *testing.T) {
+	fields := []zap.Field{zap.String("hello", "world")}
+	pc, file, line, ok := runtime.Caller(0)
+	ent := zapcore.Entry{Caller: zapcore.NewEntryCaller(pc, file, line, ok)}
+
+	want := []zap.Field{
+		zap.String("hello", "world"),
+		zap.Object(contextKey, newReportContext(pc, file, line, ok)),
+	}
+
+	assert.Equal(t, want, (&core{}).withErrorReport(ent, fields))
+}
+
+func TestWithErrorReport_DoesNotOverwrite(t *testing.T) {
+	fields := []zap.Field{zap.String(contextKey, "world")}
+	pc, file, line, ok := runtime.Caller(0)
+	ent := zapcore.Entry{Caller: zapcore.NewEntryCaller(pc, file, line, ok)}
+
+	want := []zap.Field{
+		zap.String(contextKey, "world"),
+	}
+
+	assert.Equal(t, want, (&core{}).withErrorReport(ent, fields))
+}
+
+func TestWithErrorReport_OnlyWhenDefined(t *testing.T) {
+	fields := []zap.Field{zap.String("hello", "world")}
+	pc, file, line, ok := runtime.Caller(0)
+	ent := zapcore.Entry{Caller: zapcore.NewEntryCaller(pc, file, line, ok)}
+	ent.Caller.Defined = false
+
+	want := []zap.Field{
+		zap.String("hello", "world"),
+	}
+
+	assert.Equal(t, want, (&core{}).withErrorReport(ent, fields))
+}
+
 func TestWrite(t *testing.T) {
 	temp := newLabels()
 	temp.store = map[string]string{"one": "1", "two": "2"}
@@ -222,4 +260,32 @@ func TestAllLabels(t *testing.T) {
 	assert.Equal(t, out.store["two"], "2")
 	assert.Equal(t, out.store["three"], "THREE")
 	out.mutex.RUnlock()
+}
+
+func TestWriteReportAllErrors(t *testing.T) {
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+		config: DriverConfig{
+			ReportAllErrors: true,
+		},
+	})
+
+	pc, file, line, ok := runtime.Caller(0)
+	// core.With should return with correct config
+	core = core.With([]zapcore.Field{Label("one", "world")})
+	err := core.Write(zapcore.Entry{
+		Level:  zapcore.ErrorLevel,
+		Caller: zapcore.NewEntryCaller(pc, file, line, ok),
+	}, []zapcore.Field{Label("two", "worlds")})
+	require.NoError(t, err)
+
+	context := logs.All()[0].ContextMap()[contextKey].(map[string]interface{})
+	rLocation := context["reportLocation"].(map[string]interface{})
+
+	assert.Contains(t, rLocation["filePath"], "github.com/blendle/zapdriver/core_test.go")
+	assert.Equal(t, "276", rLocation["lineNumber"])
+	assert.Equal(t, "github.com/blendle/zapdriver.TestWriteReportAllErrors", rLocation["functionName"])
 }
