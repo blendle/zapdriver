@@ -9,6 +9,7 @@ import (
 
 type DriverConfig struct {
 	ReportAllErrors bool
+	ServiceName     string
 }
 
 // Core is a zapdriver specific core wrapped around the default zap core. It
@@ -108,8 +109,16 @@ func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 
 	fields = append(fields, labelsField(c.allLabels()))
 	fields = c.withSourceLocation(ent, fields)
-	if c.config.ReportAllErrors && ent.Level.Enabled(zapcore.ErrorLevel) {
+	if c.config.ServiceName != "" {
+		fields = c.withServiceContext(c.config.ServiceName, fields)
+	}
+	if c.config.ReportAllErrors && zapcore.ErrorLevel.Enabled(ent.Level) {
 		fields = c.withErrorReport(ent, fields)
+		if c.config.ServiceName == "" {
+			// A service name was not set but error report needs it
+			// So attempt to add a generic service name
+			fields = c.withServiceContext("unknown", fields)
+		}
 	}
 
 	c.tempLabels.reset()
@@ -191,6 +200,17 @@ func (c *core) withSourceLocation(ent zapcore.Entry, fields []zapcore.Field) []z
 	}
 
 	return append(fields, SourceLocation(ent.Caller.PC, ent.Caller.File, ent.Caller.Line, true))
+}
+
+func (c *core) withServiceContext(name string, fields []zapcore.Field) []zapcore.Field {
+	// If the service context was manually set, don't overwrite it
+	for i := range fields {
+		if fields[i].Key == serviceContextKey {
+			return fields
+		}
+	}
+
+	return append(fields, ServiceContext(name))
 }
 
 func (c *core) withErrorReport(ent zapcore.Entry, fields []zapcore.Field) []zapcore.Field {
