@@ -10,10 +10,17 @@ import (
 
 const contextKey = "context"
 
+// ErrorReport adds the correct Stackdriver "context" field for getting the log line
+// reported as error.
+//
+// see: https://cloud.google.com/error-reporting/docs/formatting-error-messages
 func ErrorReport(pc uintptr, file string, line int, ok bool) zap.Field {
 	return zap.Object(contextKey, newReportContext(pc, file, line, ok))
 }
 
+// reportLocation is the source code location information associated with the log entry
+// for the purpose of reporting an error,
+// if any.
 type reportLocation struct {
 	File     string `json:"filePath"`
 	Line     string `json:"lineNumber"`
@@ -29,6 +36,7 @@ func (location reportLocation) MarshalLogObject(enc zapcore.ObjectEncoder) error
 	return nil
 }
 
+// reportContext is the context information attached to a log for reporting errors
 type reportContext struct {
 	ReportLocation reportLocation `json:"reportLocation"`
 }

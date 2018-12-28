@@ -7,9 +7,14 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// DriverConfig is used to configure core. Use it with `WrapCoreWithConfig()`
 type DriverConfig struct {
+	// Report all logs with level error or above to stackdriver using
+	// `ErrorReport()` when set to true
 	ReportAllErrors bool
-	ServiceName     string
+
+	// ServiceName is added as `ServiceContext()` to all logs when set
+	ServiceName string
 }
 
 // Core is a zapdriver specific core wrapped around the default zap core. It
@@ -33,6 +38,7 @@ type core struct {
 	// Zap core.
 	tempLabels *labels
 
+	// Configuration for the zapdriver core
 	config DriverConfig
 }
 

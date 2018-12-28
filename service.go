@@ -7,10 +7,17 @@ import (
 
 const serviceContextKey = "serviceContext"
 
+// ServiceContext adds the correct service information adding the log line
+// It is a required field if an error needs to be reported.
+//
+// see: https://cloud.google.com/error-reporting/reference/rest/v1beta1/ServiceContext
+// see: https://cloud.google.com/error-reporting/docs/formatting-error-messages
 func ServiceContext(name string) zap.Field {
 	return zap.Object(serviceContextKey, newServiceContext(name))
 }
 
+// serviceContext describes a running service that sends errors.
+// Currently it only describes a service name.
 type serviceContext struct {
 	Name string `json:"service"`
 }
