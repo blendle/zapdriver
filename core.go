@@ -32,7 +32,7 @@ type core struct {
 	// Zap core.
 	tempLabels *labels
 
-	reportAllErrors bool
+	config DriverConfig
 }
 
 // WrapCore returns a `zap.Option` that wraps the default core with the
@@ -51,10 +51,10 @@ func WrapCore() zap.Option {
 func WrapCoreWithConfig(config DriverConfig) zap.Option {
 	return zap.WrapCore(func(c zapcore.Core) zapcore.Core {
 		return &core{
-			Core:            c,
-			permLabels:      newLabels(),
-			tempLabels:      newLabels(),
-			reportAllErrors: config.ReportAllErrors,
+			Core:       c,
+			permLabels: newLabels(),
+			tempLabels: newLabels(),
+			config:     config,
 		}
 	})
 }
@@ -73,10 +73,10 @@ func (c *core) With(fields []zap.Field) zapcore.Core {
 	lbls.mutex.RUnlock()
 
 	return &core{
-		Core:            c.Core.With(fields),
-		permLabels:      c.permLabels,
-		tempLabels:      newLabels(),
-		reportAllErrors: c.reportAllErrors,
+		Core:       c.Core.With(fields),
+		permLabels: c.permLabels,
+		tempLabels: newLabels(),
+		config:     c.config,
 	}
 }
 
@@ -108,7 +108,7 @@ func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 
 	fields = append(fields, labelsField(c.allLabels()))
 	fields = c.withSourceLocation(ent, fields)
-	if c.reportAllErrors && ent.Level.Enabled(zapcore.ErrorLevel) {
+	if c.config.ReportAllErrors && ent.Level.Enabled(zapcore.ErrorLevel) {
 		fields = c.withErrorReport(ent, fields)
 	}
 
