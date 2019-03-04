@@ -16,11 +16,9 @@ func TestNewProduction(t *testing.T) {
 	assert.IsType(t, &zap.Logger{}, logger)
 }
 
-func TestNewProductionWithConfig(t *testing.T) {
-	logger, err := NewProductionWithConfig(
-		DriverConfig{
-			ReportAllErrors: true,
-		},
+func TestNewProductionWithCore(t *testing.T) {
+	logger, err := NewProductionWithCore(
+		WrapCore(ReportAllErrors(true)),
 		zap.Fields(zap.String("hello", "world")),
 	)
 
@@ -35,11 +33,9 @@ func TestNewDevelopment(t *testing.T) {
 	assert.IsType(t, &zap.Logger{}, logger)
 }
 
-func TestNewDevelopmentWithConfig(t *testing.T) {
-	logger, err := NewDevelopmentWithConfig(
-		DriverConfig{
-			ReportAllErrors: true,
-		},
+func TestNewDevelopmentWithCore(t *testing.T) {
+	logger, err := NewDevelopmentWithCore(
+		WrapCore(ReportAllErrors(true)),
 		zap.Fields(zap.String("hello", "world")),
 	)
 

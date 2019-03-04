@@ -276,25 +276,25 @@ To report errors using StackDriver's Error Reporting tool, a log line needs to f
 
 [errorreporting]: https://cloud.google.com/error-reporting/docs/formatting-error-messages
 
-The simplest way to do this is by using `NewProductionWithConfig`:
+The simplest way to do this is by using `NewProductionWithCore`:
 
 ```golang
-logger, err := zapdriver.NewProductionWithConfig(zapdriver.DriverConfig{
-  ReportAllErrors: true,
-  ServiceName: "my service",
-})
+logger, err := zapdriver.NewProductionWithCore(zapdriver.WrapCore(
+  zapdriver.ReportAllErrors(true),
+  zapdriver.ServiceName("my service"),
+))
 ```
 
-For parity-sake, there's also `zapdriver.NewDevelopmentWithConfig()`
+For parity-sake, there's also `zapdriver.NewDevelopmentWithCore()`
 
-If you are building a custom logger, you can use `WrapCoreWithConfig()` instead to configure the driver core:
+If you are building a custom logger, you can use `WrapCore()` to configure the driver core:
 
 ```golang
 config := &zap.Config{}
-logger, err := config.Build(zapdriver.WrapCoreWithConfig(zapdriver.DriverConfig{
-  ReportAllErrors: true,
-  ServiceName: "my service",
-}))
+logger, err := config.Build(zapdriver.WrapCore(
+  zapdriver.ReportAllErrors(true),
+  zapdriver.ServiceName("my service"),
+))
 ```
 
 Configuring this way, every error log entry will be reported to Stackdriver's Error Reporting tool.
@@ -312,7 +312,7 @@ logger.Error("Another error to be reported!", zapdriver.ErrorReport(pc, file, li
 ```
 
 Please keep in mind that ErrorReport needs a ServiceContext attached to the log
-entry. If you did not configure core using `DriverConfig`, error reports will
+entry. If you did not configure this using `WrapCore`, error reports will
 get attached using service name as `unknown`. To prevent this from happeneing,
 either configure your core or attach service context before (or when) using
 the logger:

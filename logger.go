@@ -14,10 +14,9 @@ func NewProduction(options ...zap.Option) (*zap.Logger, error) {
 	return NewProductionConfig().Build(options...)
 }
 
-// NewProductionWithConfig is same as NewProduction but accepts DriverConfig to
-// configure its core
-func NewProductionWithConfig(config DriverConfig, options ...zap.Option) (*zap.Logger, error) {
-	options = append(options, WrapCoreWithConfig(config))
+// NewProductionWithCore is same as NewProduction but accepts a custom configured core
+func NewProductionWithCore(core zap.Option, options ...zap.Option) (*zap.Logger, error) {
+	options = append(options, core)
 
 	return NewProductionConfig().Build(options...)
 }
@@ -32,10 +31,9 @@ func NewDevelopment(options ...zap.Option) (*zap.Logger, error) {
 	return NewDevelopmentConfig().Build(options...)
 }
 
-// NewDevelopmentWithConfig is same as NewDevelopment but accepts DriverConfig to
-// configure its core
-func NewDevelopmentWithConfig(config DriverConfig, options ...zap.Option) (*zap.Logger, error) {
-	options = append(options, WrapCoreWithConfig(config))
+// NewDevelopmentWithCore is same as NewDevelopment but accepts a custom configured core
+func NewDevelopmentWithCore(core zap.Option, options ...zap.Option) (*zap.Logger, error) {
+	options = append(options, core)
 
 	return NewDevelopmentConfig().Build(options...)
 }

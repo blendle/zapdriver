@@ -7,8 +7,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// DriverConfig is used to configure core. Use it with `WrapCoreWithConfig()`
-type DriverConfig struct {
+// driverConfig is used to configure core.
+type driverConfig struct {
 	// Report all logs with level error or above to stackdriver using
 	// `ErrorReport()` when set to true
 	ReportAllErrors bool
@@ -39,30 +39,38 @@ type core struct {
 	tempLabels *labels
 
 	// Configuration for the zapdriver core
-	config DriverConfig
+	config driverConfig
+}
+
+// zapdriver core option to report all logs with level error or above to stackdriver
+// using `ErrorReport()` when set to true
+func ReportAllErrors(report bool) func(*core) {
+	return func(c *core) {
+		c.config.ReportAllErrors = report
+	}
+}
+
+// zapdriver core option to add `ServiceContext()` to all logs with `name` as
+// service name
+func ServiceName(name string) func(*core) {
+	return func(c *core) {
+		c.config.ServiceName = name
+	}
 }
 
 // WrapCore returns a `zap.Option` that wraps the default core with the
 // zapdriver one.
-func WrapCore() zap.Option {
+func WrapCore(options ...func(*core)) zap.Option {
 	return zap.WrapCore(func(c zapcore.Core) zapcore.Core {
-		return &core{
-			Core:       c,
-			permLabels: newLabels(),
-			tempLabels: newLabels()}
-	})
-}
-
-// WrapCoreWithConfig returns a `zap.Option` that wraps the default core with the
-// configured zapdriver one.
-func WrapCoreWithConfig(config DriverConfig) zap.Option {
-	return zap.WrapCore(func(c zapcore.Core) zapcore.Core {
-		return &core{
+		newcore := &core{
 			Core:       c,
 			permLabels: newLabels(),
 			tempLabels: newLabels(),
-			config:     config,
 		}
+		for _, option := range options {
+			option(newcore)
+		}
+		return newcore
 	})
 }
 

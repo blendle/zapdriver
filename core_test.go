@@ -267,7 +267,7 @@ func TestWriteReportAllErrors(t *testing.T) {
 		Core:       debugcore,
 		permLabels: newLabels(),
 		tempLabels: newLabels(),
-		config: DriverConfig{
+		config: driverConfig{
 			ReportAllErrors: true,
 		},
 	})
@@ -298,7 +298,7 @@ func TestWriteServiceContext(t *testing.T) {
 		Core:       debugcore,
 		permLabels: newLabels(),
 		tempLabels: newLabels(),
-		config: DriverConfig{
+		config: driverConfig{
 			ServiceName: "test service",
 		},
 	})
@@ -317,7 +317,7 @@ func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
 		Core:       debugcore,
 		permLabels: newLabels(),
 		tempLabels: newLabels(),
-		config: DriverConfig{
+		config: driverConfig{
 			ReportAllErrors: true,
 			ServiceName:     "test service",
 		},
@@ -343,7 +343,7 @@ func TestWriteReportAllErrors_InfoLog(t *testing.T) {
 		Core:       debugcore,
 		permLabels: newLabels(),
 		tempLabels: newLabels(),
-		config: DriverConfig{
+		config: driverConfig{
 			ReportAllErrors: true,
 		},
 	})
