@@ -7,6 +7,16 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// driverConfig is used to configure core.
+type driverConfig struct {
+	// Report all logs with level error or above to stackdriver using
+	// `ErrorReport()` when set to true
+	ReportAllErrors bool
+
+	// ServiceName is added as `ServiceContext()` to all logs when set
+	ServiceName string
+}
+
 // Core is a zapdriver specific core wrapped around the default zap core. It
 // allows to merge all defined labels
 type core struct {
@@ -27,13 +37,40 @@ type core struct {
 	// them back in the proper format right before we call `Write` on the original
 	// Zap core.
 	tempLabels *labels
+
+	// Configuration for the zapdriver core
+	config driverConfig
+}
+
+// zapdriver core option to report all logs with level error or above to stackdriver
+// using `ErrorReport()` when set to true
+func ReportAllErrors(report bool) func(*core) {
+	return func(c *core) {
+		c.config.ReportAllErrors = report
+	}
+}
+
+// zapdriver core option to add `ServiceContext()` to all logs with `name` as
+// service name
+func ServiceName(name string) func(*core) {
+	return func(c *core) {
+		c.config.ServiceName = name
+	}
 }
 
 // WrapCore returns a `zap.Option` that wraps the default core with the
 // zapdriver one.
-func WrapCore() zap.Option {
+func WrapCore(options ...func(*core)) zap.Option {
 	return zap.WrapCore(func(c zapcore.Core) zapcore.Core {
-		return &core{c, newLabels(), newLabels()}
+		newcore := &core{
+			Core:       c,
+			permLabels: newLabels(),
+			tempLabels: newLabels(),
+		}
+		for _, option := range options {
+			option(newcore)
+		}
+		return newcore
 	})
 }
 
@@ -50,7 +87,12 @@ func (c *core) With(fields []zap.Field) zapcore.Core {
 	c.permLabels.mutex.Unlock()
 	lbls.mutex.RUnlock()
 
-	return &core{c.Core.With(fields), c.permLabels, newLabels()}
+	return &core{
+		Core:       c.Core.With(fields),
+		permLabels: c.permLabels,
+		tempLabels: newLabels(),
+		config:     c.config,
+	}
 }
 
 // Check determines whether the supplied Entry should be logged (using the
@@ -81,6 +123,17 @@ func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 
 	fields = append(fields, labelsField(c.allLabels()))
 	fields = c.withSourceLocation(ent, fields)
+	if c.config.ServiceName != "" {
+		fields = c.withServiceContext(c.config.ServiceName, fields)
+	}
+	if c.config.ReportAllErrors && zapcore.ErrorLevel.Enabled(ent.Level) {
+		fields = c.withErrorReport(ent, fields)
+		if c.config.ServiceName == "" {
+			// A service name was not set but error report needs it
+			// So attempt to add a generic service name
+			fields = c.withServiceContext("unknown", fields)
+		}
+	}
 
 	c.tempLabels.reset()
 
@@ -161,4 +214,30 @@ func (c *core) withSourceLocation(ent zapcore.Entry, fields []zapcore.Field) []z
 	}
 
 	return append(fields, SourceLocation(ent.Caller.PC, ent.Caller.File, ent.Caller.Line, true))
+}
+
+func (c *core) withServiceContext(name string, fields []zapcore.Field) []zapcore.Field {
+	// If the service context was manually set, don't overwrite it
+	for i := range fields {
+		if fields[i].Key == serviceContextKey {
+			return fields
+		}
+	}
+
+	return append(fields, ServiceContext(name))
+}
+
+func (c *core) withErrorReport(ent zapcore.Entry, fields []zapcore.Field) []zapcore.Field {
+	// If the error report was manually set, don't overwrite it
+	for i := range fields {
+		if fields[i].Key == contextKey {
+			return fields
+		}
+	}
+
+	if !ent.Caller.Defined {
+		return fields
+	}
+
+	return append(fields, ErrorReport(ent.Caller.PC, ent.Caller.File, ent.Caller.Line, true))
 }

@@ -2,6 +2,8 @@ package zapdriver
 
 import (
 	"runtime"
+	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -33,7 +35,11 @@ func TestWithLabels(t *testing.T) {
 
 func TestExtractLabels(t *testing.T) {
 	var lbls *labels
-	c := &core{zapcore.NewNopCore(), newLabels(), newLabels()}
+	c := &core{
+		Core:       zapcore.NewNopCore(),
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+	}
 
 	fields := []zap.Field{
 		zap.String("hello", "world"),
@@ -92,12 +98,75 @@ func TestWithSourceLocation_OnlyWhenDefined(t *testing.T) {
 	assert.Equal(t, want, (&core{}).withSourceLocation(ent, fields))
 }
 
+func TestWithErrorReport(t *testing.T) {
+	fields := []zap.Field{zap.String("hello", "world")}
+	pc, file, line, ok := runtime.Caller(0)
+	ent := zapcore.Entry{Caller: zapcore.NewEntryCaller(pc, file, line, ok)}
+
+	want := []zap.Field{
+		zap.String("hello", "world"),
+		zap.Object(contextKey, newReportContext(pc, file, line, ok)),
+	}
+
+	assert.Equal(t, want, (&core{}).withErrorReport(ent, fields))
+}
+
+func TestWithErrorReport_DoesNotOverwrite(t *testing.T) {
+	fields := []zap.Field{zap.String(contextKey, "world")}
+	pc, file, line, ok := runtime.Caller(0)
+	ent := zapcore.Entry{Caller: zapcore.NewEntryCaller(pc, file, line, ok)}
+
+	want := []zap.Field{
+		zap.String(contextKey, "world"),
+	}
+
+	assert.Equal(t, want, (&core{}).withErrorReport(ent, fields))
+}
+
+func TestWithErrorReport_OnlyWhenDefined(t *testing.T) {
+	fields := []zap.Field{zap.String("hello", "world")}
+	pc, file, line, ok := runtime.Caller(0)
+	ent := zapcore.Entry{Caller: zapcore.NewEntryCaller(pc, file, line, ok)}
+	ent.Caller.Defined = false
+
+	want := []zap.Field{
+		zap.String("hello", "world"),
+	}
+
+	assert.Equal(t, want, (&core{}).withErrorReport(ent, fields))
+}
+
+func TestWithServiceContext(t *testing.T) {
+	fields := []zap.Field{zap.String("hello", "world")}
+
+	want := []zap.Field{
+		zap.String("hello", "world"),
+		zap.Object(serviceContextKey, newServiceContext("test service")),
+	}
+
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+}
+
+func TestWithServiceContext_DoesNotOverwrite(t *testing.T) {
+	fields := []zap.Field{zap.String(serviceContextKey, "world")}
+
+	want := []zap.Field{
+		zap.String(serviceContextKey, "world"),
+	}
+
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+}
+
 func TestWrite(t *testing.T) {
 	temp := newLabels()
 	temp.store = map[string]string{"one": "1", "two": "2"}
 
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := &core{debugcore, newLabels(), temp}
+	core := &core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: temp,
+	}
 
 	fields := []zap.Field{
 		zap.String("hello", "world"),
@@ -118,7 +187,11 @@ func TestWriteConcurrent(t *testing.T) {
 	counter := int32(10000)
 
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := &core{debugcore, newLabels(), temp}
+	core := &core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: temp,
+	}
 
 	fields := []zap.Field{
 		zap.String("hello", "world"),
@@ -126,21 +199,29 @@ func TestWriteConcurrent(t *testing.T) {
 		Label("two", "value"),
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(goRoutines)
 	for i := 0; i < goRoutines; i++ {
 		go func() {
+			defer wg.Done()
 			for atomic.AddInt32(&counter, -1) > 0 {
 				err := core.Write(zapcore.Entry{}, fields)
 				require.NoError(t, err)
 			}
 		}()
 	}
+	wg.Wait()
 
 	assert.NotNil(t, logs.All()[0].ContextMap()["labels"])
 }
 
 func TestWithAndWrite(t *testing.T) {
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := zapcore.Core(&core{debugcore, newLabels(), newLabels()})
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+	})
 
 	core = core.With([]zapcore.Field{Label("one", "world")})
 	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
@@ -154,7 +235,11 @@ func TestWithAndWrite(t *testing.T) {
 
 func TestWithAndWrite_MultipleEntries(t *testing.T) {
 	debugcore, logs := observer.New(zapcore.DebugLevel)
-	core := zapcore.Core(&core{debugcore, newLabels(), newLabels()})
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+	})
 
 	core = core.With([]zapcore.Field{Label("one", "world")})
 	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
@@ -176,6 +261,104 @@ func TestWithAndWrite_MultipleEntries(t *testing.T) {
 	assert.Equal(t, "worlds", labels["three"])
 }
 
+func TestWriteReportAllErrors(t *testing.T) {
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+		config: driverConfig{
+			ReportAllErrors: true,
+		},
+	})
+
+	pc, file, line, ok := runtime.Caller(0)
+	// core.With should return with correct config
+	core = core.With([]zapcore.Field{Label("one", "world")})
+	err := core.Write(zapcore.Entry{
+		Level:  zapcore.ErrorLevel,
+		Caller: zapcore.NewEntryCaller(pc, file, line, ok),
+	}, []zapcore.Field{Label("two", "worlds")})
+	require.NoError(t, err)
+
+	context := logs.All()[0].ContextMap()[contextKey].(map[string]interface{})
+	rLocation := context["reportLocation"].(map[string]interface{})
+	assert.Contains(t, rLocation["filePath"], "github.com/blendle/zapdriver/core_test.go")
+	assert.Equal(t, strconv.Itoa(line), rLocation["lineNumber"])
+	assert.Equal(t, "github.com/blendle/zapdriver.TestWriteReportAllErrors", rLocation["functionName"])
+
+	// Assert that a service context was attached even though service name was not set
+	serviceContext := logs.All()[0].ContextMap()[serviceContextKey].(map[string]interface{})
+	assert.Equal(t, "unknown", serviceContext["service"])
+}
+
+func TestWriteServiceContext(t *testing.T) {
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+		config: driverConfig{
+			ServiceName: "test service",
+		},
+	})
+
+	err := core.Write(zapcore.Entry{}, []zapcore.Field{})
+	require.NoError(t, err)
+
+	// Assert that a service context was attached even though service name was not set
+	serviceContext := logs.All()[0].ContextMap()[serviceContextKey].(map[string]interface{})
+	assert.Equal(t, "test service", serviceContext["service"])
+}
+
+func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+		config: driverConfig{
+			ReportAllErrors: true,
+			ServiceName:     "test service",
+		},
+	})
+
+	pc, file, line, ok := runtime.Caller(0)
+	err := core.Write(zapcore.Entry{
+		Level:  zapcore.ErrorLevel,
+		Caller: zapcore.NewEntryCaller(pc, file, line, ok),
+	}, []zapcore.Field{})
+	require.NoError(t, err)
+
+	assert.Contains(t, logs.All()[0].ContextMap(), contextKey)
+
+	// Assert that a service context was attached even though service name was not set
+	serviceContext := logs.All()[0].ContextMap()[serviceContextKey].(map[string]interface{})
+	assert.Equal(t, "test service", serviceContext["service"])
+}
+
+func TestWriteReportAllErrors_InfoLog(t *testing.T) {
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+		config: driverConfig{
+			ReportAllErrors: true,
+		},
+	})
+
+	pc, file, line, ok := runtime.Caller(0)
+	err := core.Write(zapcore.Entry{
+		Level:  zapcore.InfoLevel,
+		Caller: zapcore.NewEntryCaller(pc, file, line, ok),
+	}, []zapcore.Field{})
+	require.NoError(t, err)
+
+	assert.NotContains(t, logs.All()[0].ContextMap(), contextKey)
+	assert.NotContains(t, logs.All()[0].ContextMap(), serviceContextKey)
+}
+
 func TestAllLabels(t *testing.T) {
 	perm := newLabels()
 	perm.store = map[string]string{"one": "1", "two": "2", "three": "3"}
@@ -183,7 +366,11 @@ func TestAllLabels(t *testing.T) {
 	temp := newLabels()
 	temp.store = map[string]string{"one": "ONE", "three": "THREE"}
 
-	core := &core{zapcore.NewNopCore(), perm, temp}
+	core := &core{
+		Core:       zapcore.NewNopCore(),
+		permLabels: perm,
+		tempLabels: temp,
+	}
 
 	out := core.allLabels()
 	require.Len(t, out.store, 3)
