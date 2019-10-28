@@ -12,9 +12,9 @@ func TestSourceLocation(t *testing.T) {
 
 	got := SourceLocation(runtime.Caller(0)).Interface.(*source)
 
-	assert.Contains(t, got.File, "github.com/blendle/zapdriver/source_test.go")
+	assert.Contains(t, got.File, "zapdriver/source_test.go")
 	assert.Equal(t, "13", got.Line)
-	assert.Equal(t, "github.com/blendle/zapdriver.TestSourceLocation", got.Function)
+	assert.Contains(t, got.Function, "zapdriver.TestSourceLocation")
 }
 
 func TestNewSource(t *testing.T) {
@@ -22,7 +22,7 @@ func TestNewSource(t *testing.T) {
 
 	got := newSource(runtime.Caller(0))
 
-	assert.Contains(t, got.File, "blendle/zapdriver/source_test.go")
+	assert.Contains(t, got.File, "zapdriver/source_test.go")
 	assert.Equal(t, "23", got.Line)
-	assert.Equal(t, "github.com/blendle/zapdriver.TestNewSource", got.Function)
+	assert.Contains(t, got.Function, "zapdriver.TestNewSource")
 }
