@@ -27,7 +27,7 @@ func TestWithLabels(t *testing.T) {
 
 	want := []zap.Field{
 		zap.String("hello", "world"),
-		zap.Object("labels", labels),
+		zap.Object("logging.googleapis.com/labels", labels),
 	}
 
 	assert.Equal(t, want, (&core{}).withLabels(fields))
@@ -177,7 +177,7 @@ func TestWrite(t *testing.T) {
 	err := core.Write(zapcore.Entry{}, fields)
 	require.NoError(t, err)
 
-	assert.NotNil(t, logs.All()[0].ContextMap()["labels"])
+	assert.NotNil(t, logs.All()[0].ContextMap()[labelsKey])
 }
 
 func TestWriteConcurrent(t *testing.T) {
@@ -212,7 +212,7 @@ func TestWriteConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-	assert.NotNil(t, logs.All()[0].ContextMap()["labels"])
+	assert.NotNil(t, logs.All()[0].ContextMap()[labelsKey])
 }
 
 func TestWithAndWrite(t *testing.T) {
@@ -227,7 +227,7 @@ func TestWithAndWrite(t *testing.T) {
 	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
 	require.NoError(t, err)
 
-	labels := logs.All()[0].ContextMap()["labels"].(map[string]interface{})
+	labels := logs.All()[0].ContextMap()[labelsKey].(map[string]interface{})
 
 	assert.Equal(t, "world", labels["one"])
 	assert.Equal(t, "worlds", labels["two"])
@@ -245,7 +245,7 @@ func TestWithAndWrite_MultipleEntries(t *testing.T) {
 	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
 	require.NoError(t, err)
 
-	labels := logs.All()[0].ContextMap()["labels"].(map[string]interface{})
+	labels := logs.All()[0].ContextMap()[labelsKey].(map[string]interface{})
 	require.Len(t, labels, 2)
 
 	assert.Equal(t, "world", labels["one"])
@@ -254,7 +254,7 @@ func TestWithAndWrite_MultipleEntries(t *testing.T) {
 	err = core.Write(zapcore.Entry{}, []zapcore.Field{Label("three", "worlds")})
 	require.NoError(t, err)
 
-	labels = logs.All()[1].ContextMap()["labels"].(map[string]interface{})
+	labels = logs.All()[1].ContextMap()[labelsKey].(map[string]interface{})
 	require.Len(t, labels, 2)
 
 	assert.Equal(t, "world", labels["one"])

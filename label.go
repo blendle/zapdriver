@@ -8,6 +8,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const labelsKey = "logging.googleapis.com/labels"
+
 // Label adds an optional label to the payload.
 //
 // Labels are a set of user-defined (key, value) data that provides additional
@@ -40,7 +42,7 @@ func isLabelField(field zap.Field) bool {
 }
 
 func labelsField(l *labels) zap.Field {
-	return zap.Object("labels", l)
+	return zap.Object(labelsKey, l)
 }
 
 type labels struct {

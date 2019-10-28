@@ -26,5 +26,5 @@ func TestLabels(t *testing.T) {
 	labels := newLabels()
 	labels.store = map[string]string{"hello": "world", "hi": "universe"}
 
-	assert.Equal(t, zap.Object("labels", labels), field)
+	assert.Equal(t, zap.Object(labelsKey, labels), field)
 }
