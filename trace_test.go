@@ -1,9 +1,10 @@
 package zapdriver
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	"testing"
 )
 
 func TestTraceContext(t *testing.T) {
@@ -13,6 +14,6 @@ func TestTraceContext(t *testing.T) {
 	assert.Equal(t, fields, []zap.Field{
 		zap.String(traceKey, "projects/my-project-name/traces/105445aa7843bc8bf206b120001000"),
 		zap.String(spanKey, "0"),
-		zap.String(traceSampledKey, "true"),
+		zap.Bool(traceSampledKey, true),
 	})
 }
