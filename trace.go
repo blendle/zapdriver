@@ -2,13 +2,13 @@ package zapdriver
 
 import (
 	"fmt"
+
 	"go.uber.org/zap"
-	"strconv"
 )
 
 const (
-	traceKey = "logging.googleapis.com/trace"
-	spanKey = "logging.googleapis.com/spanId"
+	traceKey        = "logging.googleapis.com/trace"
+	spanKey         = "logging.googleapis.com/spanId"
 	traceSampledKey = "logging.googleapis.com/trace_sampled"
 )
 
@@ -19,6 +19,6 @@ func TraceContext(trace string, spanId string, sampled bool, projectName string)
 	return []zap.Field{
 		zap.String(traceKey, fmt.Sprintf("projects/%s/traces/%s", projectName, trace)),
 		zap.String(spanKey, spanId),
-		zap.String(traceSampledKey, strconv.FormatBool(sampled)),
+		zap.Bool(traceSampledKey, sampled),
 	}
 }
