@@ -3,7 +3,6 @@ package zapdriver
 import (
 	"fmt"
 	"go.uber.org/zap"
-	"regexp"
 	"strconv"
 )
 
@@ -16,15 +15,10 @@ const (
 // TraceContext adds the correct Stackdriver "trace", "span", "trace_sampled fields
 //
 // see: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
-func TraceContext(traceContext string, projectName string) []zap.Field {
-	r := regexp.MustCompile(`(?P<Trace>[0-9a-zA-Z]+)/(?P<Span>[0-9a-zA-Z]+);o=(?P<TraceSampled>[0-1])`)
-	matches := r.FindStringSubmatch(traceContext)
-	if len(matches) == 4 {
-		return []zap.Field{
-			zap.String(traceKey, fmt.Sprintf("projects/%s/traces/%s", projectName, matches[1])),
-			zap.String(spanKey, matches[2]),
-			zap.String(traceSampledKey, strconv.FormatBool(matches[3] == "1")),
-		}
+func TraceContext(trace string, spanId string, sampled bool, projectName string) []zap.Field {
+	return []zap.Field{
+		zap.String(traceKey, fmt.Sprintf("projects/%s/traces/%s", projectName, trace)),
+		zap.String(spanKey, spanId),
+		zap.String(traceSampledKey, strconv.FormatBool(sampled)),
 	}
-	return []zap.Field{}
 }

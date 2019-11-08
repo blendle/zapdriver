@@ -213,14 +213,13 @@ You can add trace context information to your log lines to be picked up by
 Stackdriver.
 
 ```golang
-TraceContext(traceContext string, projectName string) []zap.Field
+TraceContext(trace string, spanId string, sampled bool, projectName string) []zap.Field
 ```
 
-Note that the `traceContext` has a specific format: `TRACE_ID/SPAN_ID;o=TRACE_TRUE`. If the `traceContext` is not 
-in this format, the fields will not be added to your log lines
+Like so:
 
 ```golang
-logger.Error("Something happened!", zapdriver.TraceContext("105445aa7843bc8bf206b120001000/0;o=1", "my-project-name")...)
+logger.Error("Something happened!", zapdriver.TraceContext("105445aa7843bc8bf206b120001000", "0", true, "my-project-name")...)
 ```
 
 ### Pre-configured Stackdriver-optimized encoder
