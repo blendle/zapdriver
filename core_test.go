@@ -180,6 +180,28 @@ func TestWrite(t *testing.T) {
 	assert.NotNil(t, logs.All()[0].ContextMap()[labelsKey])
 }
 
+// ref: https://github.com/blendle/zapdriver/issues/29
+func TestWriteDuplicateLabels(t *testing.T) {
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := &core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+	}
+
+	fields := []zap.Field{
+		Labels(
+			Label("hello", "world"),
+			Label("hi", "universe"),
+		),
+	}
+
+	err := core.Write(zapcore.Entry{}, fields)
+	require.NoError(t, err)
+
+	assert.Len(t, logs.All()[0].Context, 1)
+}
+
 func TestWriteConcurrent(t *testing.T) {
 	temp := newLabels()
 	temp.store = map[string]string{"one": "1", "two": "2"}
