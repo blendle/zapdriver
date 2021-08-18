@@ -320,6 +320,7 @@ func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
 		config: driverConfig{
 			ReportAllErrors: true,
 			ServiceName:     "test service",
+			ServiceVersion: "1.0.0",
 		},
 	})
 
@@ -335,6 +336,7 @@ func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
 	// Assert that a service context was attached even though service name was not set
 	serviceContext := logs.All()[0].ContextMap()[serviceContextKey].(map[string]interface{})
 	assert.Equal(t, "test service", serviceContext["service"])
+	assert.Equal(t, "1.0.0", serviceContext["version"])
 }
 
 func TestWriteReportAllErrors_InfoLog(t *testing.T) {
