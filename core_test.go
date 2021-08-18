@@ -141,10 +141,10 @@ func TestWithServiceContext(t *testing.T) {
 
 	want := []zap.Field{
 		zap.String("hello", "world"),
-		zap.Object(serviceContextKey, newServiceContext("test service")),
+		zap.Object(serviceContextKey, newServiceContext("test service", "1.0.0")),
 	}
 
-	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", "1.0.0", fields))
 }
 
 func TestWithServiceContext_DoesNotOverwrite(t *testing.T) {
@@ -154,7 +154,7 @@ func TestWithServiceContext_DoesNotOverwrite(t *testing.T) {
 		zap.String(serviceContextKey, "world"),
 	}
 
-	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", "1.0.0", fields))
 }
 
 func TestWrite(t *testing.T) {
@@ -320,6 +320,7 @@ func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
 		config: driverConfig{
 			ReportAllErrors: true,
 			ServiceName:     "test service",
+			ServiceVersion: "1.0.0",
 		},
 	})
 
@@ -335,6 +336,7 @@ func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
 	// Assert that a service context was attached even though service name was not set
 	serviceContext := logs.All()[0].ContextMap()[serviceContextKey].(map[string]interface{})
 	assert.Equal(t, "test service", serviceContext["service"])
+	assert.Equal(t, "1.0.0", serviceContext["version"])
 }
 
 func TestWriteReportAllErrors_InfoLog(t *testing.T) {
