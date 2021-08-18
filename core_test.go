@@ -141,10 +141,10 @@ func TestWithServiceContext(t *testing.T) {
 
 	want := []zap.Field{
 		zap.String("hello", "world"),
-		zap.Object(serviceContextKey, newServiceContext("test service")),
+		zap.Object(serviceContextKey, newServiceContext("test service", "1.0.0")),
 	}
 
-	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", "1.0.0", fields))
 }
 
 func TestWithServiceContext_DoesNotOverwrite(t *testing.T) {
@@ -154,7 +154,7 @@ func TestWithServiceContext_DoesNotOverwrite(t *testing.T) {
 		zap.String(serviceContextKey, "world"),
 	}
 
-	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", "1.0.0", fields))
 }
 
 func TestWrite(t *testing.T) {
