@@ -121,7 +121,7 @@ func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	c.tempLabels.mutex.Unlock()
 	lbls.mutex.RUnlock()
 
-	fields = append(fields, labelsField(c.allLabels()))
+	fields = mergeLabelFields(fields, c.allLabels())
 	fields = c.withSourceLocation(ent, fields)
 	if c.config.ServiceName != "" {
 		fields = c.withServiceContext(c.config.ServiceName, fields)
