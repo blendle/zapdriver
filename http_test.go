@@ -8,9 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/blendle/zapdriver"
 	"github.com/stretchr/testify/assert"
+
 	"go.uber.org/zap"
+
+	"go.ajitem.com/zapdriver"
 )
 
 func TestHTTP(t *testing.T) {
