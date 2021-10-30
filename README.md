@@ -176,6 +176,13 @@ the frame of the triggered log line, you'd do it like this:
 logger.Error("Something happened!", zapdriver.SourceLocation(runtime.Caller(0)))
 ```
 
+In case the location is wrong due to more wrapping, you can skip down the stack with 
+```
+import ("go.uber.org/zap")
+//...
+logger = logger.WithOptions(zap.AddCallerSkip(1))
+```
+
 #### Operation
 
 The `Operation` log field allows you to group log lines into a single
