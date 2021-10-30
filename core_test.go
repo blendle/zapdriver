@@ -141,10 +141,10 @@ func TestWithServiceContext(t *testing.T) {
 
 	want := []zap.Field{
 		zap.String("hello", "world"),
-		zap.Object(serviceContextKey, newServiceContext("test service")),
+		zap.Object(serviceContextKey, newServiceContext("test service", "test version")),
 	}
 
-	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", "test version", fields))
 }
 
 func TestWithServiceContext_DoesNotOverwrite(t *testing.T) {
@@ -154,7 +154,7 @@ func TestWithServiceContext_DoesNotOverwrite(t *testing.T) {
 		zap.String(serviceContextKey, "world"),
 	}
 
-	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", "test version", fields))
 }
 
 func TestWrite(t *testing.T) {
@@ -321,7 +321,8 @@ func TestWriteServiceContext(t *testing.T) {
 		permLabels: newLabels(),
 		tempLabels: newLabels(),
 		config: driverConfig{
-			ServiceName: "test service",
+			ServiceName:    "test service",
+			ServiceVersion: "v0.0.1",
 		},
 	})
 
@@ -331,6 +332,7 @@ func TestWriteServiceContext(t *testing.T) {
 	// Assert that a service context was attached even though service name was not set
 	serviceContext := logs.All()[0].ContextMap()[serviceContextKey].(map[string]interface{})
 	assert.Equal(t, "test service", serviceContext["service"])
+	assert.Equal(t, "v0.0.1", serviceContext["version"])
 }
 
 func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
@@ -342,6 +344,7 @@ func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
 		config: driverConfig{
 			ReportAllErrors: true,
 			ServiceName:     "test service",
+			ServiceVersion:  "v0.0.1",
 		},
 	})
 
@@ -357,6 +360,7 @@ func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
 	// Assert that a service context was attached even though service name was not set
 	serviceContext := logs.All()[0].ContextMap()[serviceContextKey].(map[string]interface{})
 	assert.Equal(t, "test service", serviceContext["service"])
+	assert.Equal(t, "v0.0.1", serviceContext["version"])
 }
 
 func TestWriteReportAllErrors_InfoLog(t *testing.T) {
