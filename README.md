@@ -7,6 +7,10 @@ Blazing fast, [Zap][zap]-based [Stackdriver][stackdriver] logging.
 
 ## Usage
 
+```golang
+import "go.ajitem.com/zapdriver"
+```
+
 This package provides three building blocks to support the full array of
 structured logging capabilities of Stackdriver:
 
