@@ -283,6 +283,35 @@ func TestWithAndWrite_MultipleEntries(t *testing.T) {
 	assert.Equal(t, "worlds", labels["three"])
 }
 
+func TestWithParentNotMutated(t *testing.T) {
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+		config: driverConfig{
+			ReportAllErrors: true,
+		},
+	})
+	core2 := core.With([]zapcore.Field{Label("one", "world")})
+
+	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
+	require.NoError(t, err)
+
+	labels := logs.All()[0].ContextMap()[labelsKey].(map[string]interface{})
+	require.Len(t, labels, 1)
+	assert.Equal(t, "worlds", labels["two"])
+
+	err = core2.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
+	require.NoError(t, err)
+
+	labels = logs.All()[1].ContextMap()[labelsKey].(map[string]interface{})
+	require.Len(t, labels, 2)
+
+	assert.Equal(t, "world", labels["one"])
+	assert.Equal(t, "worlds", labels["two"])
+}
+
 func TestWriteReportAllErrors(t *testing.T) {
 	debugcore, logs := observer.New(zapcore.DebugLevel)
 	core := zapcore.Core(&core{
