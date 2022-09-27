@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blendle/zapdriver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.ajitem.com/zapdriver"
 	"go.uber.org/zap/zapcore"
 )
 
