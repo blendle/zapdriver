@@ -45,6 +45,29 @@ func labelsField(l *labels) zap.Field {
 	return zap.Object(labelsKey, l)
 }
 
+func mergeLabelFields(fields []zap.Field, newLabels *labels) []zap.Field {
+	for i := range fields {
+		lbls, ok := fields[i].Interface.(*labels)
+		if !ok {
+			continue
+		}
+
+		newLabels.mutex.RLock()
+		defer newLabels.mutex.RUnlock()
+
+		lbls.mutex.Lock()
+		defer lbls.mutex.Unlock()
+
+		for k, v := range newLabels.store {
+			lbls.store[k] = v
+		}
+
+		return fields
+	}
+
+	return append(fields, labelsField(newLabels))
+}
+
 type labels struct {
 	store map[string]string
 	mutex *sync.RWMutex

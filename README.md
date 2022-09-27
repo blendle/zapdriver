@@ -7,6 +7,10 @@ Blazing fast, [Zap][zap]-based [Stackdriver][stackdriver] logging.
 
 ## Usage
 
+```golang
+import "go.ajitem.com/zapdriver"
+```
+
 This package provides three building blocks to support the full array of
 structured logging capabilities of Stackdriver:
 
@@ -182,6 +186,13 @@ the frame of the triggered log line, you'd do it like this:
 
 ```golang
 logger.Error("Something happened!", zapdriver.SourceLocation(runtime.Caller(0)))
+```
+
+In case the location is wrong due to more wrapping, you can skip down the stack with 
+```
+import ("go.uber.org/zap")
+//...
+logger = logger.WithOptions(zap.AddCallerSkip(1))
 ```
 
 #### Operation

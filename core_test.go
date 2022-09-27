@@ -141,10 +141,10 @@ func TestWithServiceContext(t *testing.T) {
 
 	want := []zap.Field{
 		zap.String("hello", "world"),
-		zap.Object(serviceContextKey, newServiceContext("test service")),
+		zap.Object(serviceContextKey, newServiceContext("test service", "test version")),
 	}
 
-	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", "test version", fields))
 }
 
 func TestWithServiceContext_DoesNotOverwrite(t *testing.T) {
@@ -154,7 +154,7 @@ func TestWithServiceContext_DoesNotOverwrite(t *testing.T) {
 		zap.String(serviceContextKey, "world"),
 	}
 
-	assert.Equal(t, want, (&core{}).withServiceContext("test service", fields))
+	assert.Equal(t, want, (&core{}).withServiceContext("test service", "test version", fields))
 }
 
 func TestWrite(t *testing.T) {
@@ -178,6 +178,28 @@ func TestWrite(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotNil(t, logs.All()[0].ContextMap()[labelsKey])
+}
+
+// ref: https://github.com/blendle/zapdriver/issues/29
+func TestWriteDuplicateLabels(t *testing.T) {
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := &core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+	}
+
+	fields := []zap.Field{
+		Labels(
+			Label("hello", "world"),
+			Label("hi", "universe"),
+		),
+	}
+
+	err := core.Write(zapcore.Entry{}, fields)
+	require.NoError(t, err)
+
+	assert.Len(t, logs.All()[0].Context, 1)
 }
 
 func TestWriteConcurrent(t *testing.T) {
@@ -261,6 +283,35 @@ func TestWithAndWrite_MultipleEntries(t *testing.T) {
 	assert.Equal(t, "worlds", labels["three"])
 }
 
+func TestWithParentNotMutated(t *testing.T) {
+	debugcore, logs := observer.New(zapcore.DebugLevel)
+	core := zapcore.Core(&core{
+		Core:       debugcore,
+		permLabels: newLabels(),
+		tempLabels: newLabels(),
+		config: driverConfig{
+			ReportAllErrors: true,
+		},
+	})
+	core2 := core.With([]zapcore.Field{Label("one", "world")})
+
+	err := core.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
+	require.NoError(t, err)
+
+	labels := logs.All()[0].ContextMap()[labelsKey].(map[string]interface{})
+	require.Len(t, labels, 1)
+	assert.Equal(t, "worlds", labels["two"])
+
+	err = core2.Write(zapcore.Entry{}, []zapcore.Field{Label("two", "worlds")})
+	require.NoError(t, err)
+
+	labels = logs.All()[1].ContextMap()[labelsKey].(map[string]interface{})
+	require.Len(t, labels, 2)
+
+	assert.Equal(t, "world", labels["one"])
+	assert.Equal(t, "worlds", labels["two"])
+}
+
 func TestWriteReportAllErrors(t *testing.T) {
 	debugcore, logs := observer.New(zapcore.DebugLevel)
 	core := zapcore.Core(&core{
@@ -299,7 +350,8 @@ func TestWriteServiceContext(t *testing.T) {
 		permLabels: newLabels(),
 		tempLabels: newLabels(),
 		config: driverConfig{
-			ServiceName: "test service",
+			ServiceName:    "test service",
+			ServiceVersion: "v0.0.1",
 		},
 	})
 
@@ -309,6 +361,7 @@ func TestWriteServiceContext(t *testing.T) {
 	// Assert that a service context was attached even though service name was not set
 	serviceContext := logs.All()[0].ContextMap()[serviceContextKey].(map[string]interface{})
 	assert.Equal(t, "test service", serviceContext["service"])
+	assert.Equal(t, "v0.0.1", serviceContext["version"])
 }
 
 func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
@@ -320,6 +373,7 @@ func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
 		config: driverConfig{
 			ReportAllErrors: true,
 			ServiceName:     "test service",
+			ServiceVersion:  "v0.0.1",
 		},
 	})
 
@@ -335,6 +389,7 @@ func TestWriteReportAllErrors_WithServiceContext(t *testing.T) {
 	// Assert that a service context was attached even though service name was not set
 	serviceContext := logs.All()[0].ContextMap()[serviceContextKey].(map[string]interface{})
 	assert.Equal(t, "test service", serviceContext["service"])
+	assert.Equal(t, "v0.0.1", serviceContext["version"])
 }
 
 func TestWriteReportAllErrors_InfoLog(t *testing.T) {

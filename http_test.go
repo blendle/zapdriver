@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.ajitem.com/zapdriver"
+
 	"go.uber.org/zap"
+
+	"go.ajitem.com/zapdriver"
 )
 
 func TestHTTP(t *testing.T) {
