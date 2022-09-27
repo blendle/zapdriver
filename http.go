@@ -117,23 +117,48 @@ func NewHTTP(req *http.Request, res *http.Response) *HTTPPayload {
 		RemoteIP:      req.RemoteAddr,
 		Referer:       req.Referer(),
 		Protocol:      req.Proto,
+		ServerIP:      req.Host,
 	}
 
 	if req.URL != nil {
 		sdreq.RequestURL = req.URL.String()
 	}
 
+	// Count the requestSize: both headers and body
+	var requestSize int64
+
+	for hKey, hValue := range req.Header {
+		requestSize += int64(len([]byte(hKey)))
+		for _, v := range hValue {
+			requestSize += int64(len([]byte(v)))
+		}
+	}
+
 	buf := &bytes.Buffer{}
 	if req.Body != nil {
 		n, _ := io.Copy(buf, req.Body) // nolint: gas
-		sdreq.RequestSize = strconv.FormatInt(n, 10)
+		requestSize += n
+	}
+
+	sdreq.RequestSize = strconv.FormatInt(requestSize, 10)
+
+	// Count the response size, both headers and body
+	var responseSize int64
+
+	for hKey, hValue := range res.Header {
+		responseSize += int64(len([]byte(hKey)))
+		for _, v := range hValue {
+			responseSize += int64(len([]byte(v)))
+		}
 	}
 
 	if res.Body != nil {
 		buf.Reset()
 		n, _ := io.Copy(buf, res.Body) // nolint: gas
-		sdreq.ResponseSize = strconv.FormatInt(n, 10)
+		responseSize += n
 	}
+
+	sdreq.ResponseSize = strconv.FormatInt(responseSize, 10)
 
 	return sdreq
 }
@@ -142,8 +167,8 @@ func NewHTTP(req *http.Request, res *http.Response) *HTTPPayload {
 func (req HTTPPayload) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("requestMethod", req.RequestMethod)
 	enc.AddString("requestUrl", req.RequestURL)
-	enc.AddString("requestSize", req.RequestSize)
 	enc.AddInt("status", req.Status)
+	enc.AddString("requestSize", req.RequestSize)
 	enc.AddString("responseSize", req.ResponseSize)
 	enc.AddString("userAgent", req.UserAgent)
 	enc.AddString("remoteIp", req.RemoteIP)
@@ -153,8 +178,11 @@ func (req HTTPPayload) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddBool("cacheLookup", req.CacheLookup)
 	enc.AddBool("cacheHit", req.CacheHit)
 	enc.AddBool("cacheValidatedWithOriginServer", req.CacheValidatedWithOriginServer)
-	enc.AddString("cacheFillBytes", req.CacheFillBytes)
 	enc.AddString("protocol", req.Protocol)
+
+	if req.CacheFillBytes != "" {
+		enc.AddString("cacheFillBytes", req.CacheFillBytes)
+	}
 
 	return nil
 }

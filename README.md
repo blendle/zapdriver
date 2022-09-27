@@ -10,10 +10,18 @@ Blazing fast, [Zap][zap]-based [Stackdriver][stackdriver] logging.
 This package provides three building blocks to support the full array of
 structured logging capabilities of Stackdriver:
 
-* [Special purpose logging fields](#special-purpose-logging-fields)
-* [Pre-configured Stackdriver-optimized encoder](#pre-configured-stackdriver-optimized-encoder)
-* [Custom Stackdriver Zap core](#custom-stackdriver-zap-core)
-* [Using Error Reporting](#using-error-reporting)
+- [:zap: Zapdriver](#zap-zapdriver)
+  - [Usage](#usage)
+    - [Special purpose logging fields](#special-purpose-logging-fields)
+      - [HTTP](#http)
+      - [Label](#label)
+      - [SourceLocation](#sourcelocation)
+      - [Operation](#operation)
+      - [TraceContext](#tracecontext)
+    - [Pre-configured Stackdriver-optimized encoder](#pre-configured-stackdriver-optimized-encoder)
+    - [Custom Stackdriver Zap core](#custom-stackdriver-zap-core)
+    - [Using Error Reporting](#using-error-reporting)
+      - [Reporting errors manually](#reporting-errors-manually)
 
 The above components can be used separately, but to start, you can create a new
 Zap logger with all of the above included:
@@ -89,7 +97,7 @@ one or the other will be omitted if `nil` is passed in.
 Note that there are some fields that are not populated by either the request or
 response object, and need to be set manually:
 
-* `ServerIP string`
+
 * `Latency string`
 * `CacheLookup bool`
 * `CacheHit bool`
