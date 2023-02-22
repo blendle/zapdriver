@@ -110,6 +110,12 @@ func (c *core) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.Check
 }
 
 func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
+	for i, field := range fields {
+		if field.Type == zapcore.ErrorType {
+			FormatErrorField(&fields[i])
+		}
+	}
+
 	var lbls *labels
 	lbls, fields = c.extractLabels(fields)
 
