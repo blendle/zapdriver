@@ -3,35 +3,39 @@ package zapdriver
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap/zapcore"
 )
 
-func ErrFormat(err error) string {
-	if err == nil {
-		return ""
-	}
-	type stackTracer interface {
-		StackTrace() errors.StackTrace
-	}
-	cause := errors.Cause(err)
-	if stackTrace, ok := cause.(stackTracer); ok {
-		buf := bytes.Buffer{}
-		for i, frame := range stackTrace.StackTrace() {
-			if i == 0 {
-				buf.WriteByte('\n')
-			}
+type stackdriverFmtError struct{ err error }
 
-			buf.WriteString(fmt.Sprintf("\n%+v", frame))
-		}
-		return err.Error() + buf.String()
-	}
-	return err.Error()
+type stackTracer interface {
+	StackTrace() errors.StackTrace
 }
 
-func FormatErrorField(field *zapcore.Field) {
-	if err, ok := field.Interface.(error); ok {
-		field.Interface = ErrFormat(err)
+// see https://github.com/googleapis/google-cloud-go/issues/1084#issuecomment-474565019
+// this is a hack to get stackdriver to parse the stacktrace
+func (e stackdriverFmtError) Error() string {
+	if e.err == nil {
+		return ""
 	}
+	if stackTrace, ok := errors.Cause(e.err).(stackTracer); ok {
+		buf := bytes.NewBufferString(e.err.Error())
+		// routine id and state aren't available in pure go, so we hard-coded these
+		// required for stackdrivers runtime.Stack() format parsing
+		buf.WriteString("\n\ngoroutine 1 [running]:")
+		for _, frame := range stackTrace.StackTrace() {
+			buf.WriteByte('\n')
+
+			pc := uintptr(frame) - 1
+			fn := runtime.FuncForPC(pc)
+			if fn != nil {
+				file, line := fn.FileLine(pc)
+				buf.WriteString(fmt.Sprintf("%s()\n\t%s:%d +%#x", fn.Name(), file, line, fn.Entry()))
+			}
+		}
+		return buf.String()
+	}
+	return e.err.Error()
 }

@@ -15,6 +15,10 @@ type driverConfig struct {
 
 	// ServiceName is added as `ServiceContext()` to all logs when set
 	ServiceName string
+
+	// Correct stack traces for errors logged with zap.Error() so that
+	// they get formatted correctly in stackdriver
+	FmtStackTraces bool
 }
 
 // Core is a zapdriver specific core wrapped around the default zap core. It
@@ -47,6 +51,14 @@ type core struct {
 func ReportAllErrors(report bool) func(*core) {
 	return func(c *core) {
 		c.config.ReportAllErrors = report
+	}
+}
+
+// zapdriver core option to enable outputting stack traces compatible with
+// stackdriver when set to true
+func FmtStackTraces(fmt bool) func(*core) {
+	return func(c *core) {
+		c.config.FmtStackTraces = fmt
 	}
 }
 
@@ -110,12 +122,6 @@ func (c *core) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.Check
 }
 
 func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
-	for i, field := range fields {
-		if field.Type == zapcore.ErrorType {
-			FormatErrorField(&fields[i])
-		}
-	}
-
 	var lbls *labels
 	lbls, fields = c.extractLabels(fields)
 
@@ -138,6 +144,17 @@ func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 			// A service name was not set but error report needs it
 			// So attempt to add a generic service name
 			fields = c.withServiceContext("unknown", fields)
+		}
+	}
+	if c.config.FmtStackTraces {
+		for i, field := range fields {
+			if field.Type == zapcore.ErrorType {
+				// remove stackdriver-incompatible zap stack trace
+				ent.Stack = ""
+				fields[i].Key = "exception"
+				fields[i].Interface = stackdriverFmtError{field.Interface.(error)}
+				break
+			}
 		}
 	}
 
