@@ -15,6 +15,10 @@ type driverConfig struct {
 
 	// ServiceName is added as `ServiceContext()` to all logs when set
 	ServiceName string
+
+	// Correct stack traces for errors logged with zap.Error() so that
+	// they get formatted correctly in stackdriver
+	SkipFmtStackTraces bool
 }
 
 // Core is a zapdriver specific core wrapped around the default zap core. It
@@ -47,6 +51,14 @@ type core struct {
 func ReportAllErrors(report bool) func(*core) {
 	return func(c *core) {
 		c.config.ReportAllErrors = report
+	}
+}
+
+// zapdriver core option to enable outputting stack traces compatible with
+// stackdriver when set to true
+func SkipFmtStackTraces(skipFmt bool) func(*core) {
+	return func(c *core) {
+		c.config.SkipFmtStackTraces = skipFmt
 	}
 }
 
@@ -135,9 +147,36 @@ func (c *core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		}
 	}
 
+	if !c.config.SkipFmtStackTraces {
+		// only improve the stacktrace if the error is reported to stackdriver
+		reported, errorField := reportedError(fields)
+		if reported && errorField != nil {
+			// remove stackdriver-incompatible zap stack trace
+			ent.Stack = ""
+			errorField.Key = "exception"
+			errorField.Interface = stackdriverFmtError{errorField.Interface.(error)}
+		}
+	}
+
 	c.tempLabels.reset()
 
 	return c.Core.Write(ent, fields)
+}
+
+func reportedError(fields []zapcore.Field) (reported bool, field *zapcore.Field) {
+	var errorField int = -1
+	for i, field := range fields {
+		if field.Key == contextKey {
+			reported = true
+		}
+		if field.Type == zapcore.ErrorType {
+			errorField = i
+		}
+	}
+	if errorField >= 0 {
+		return reported, &fields[errorField]
+	}
+	return reported, nil
 }
 
 // Sync flushes buffered logs (if any).
