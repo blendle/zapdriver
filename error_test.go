@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 type fakeErr struct{}
@@ -44,4 +45,17 @@ func makeStackTraceStable(str string) string {
 	dir, _ := os.Getwd()
 	str = strings.ReplaceAll(str, dir, "")
 	return str
+}
+
+func ExampleSkipFmtStackTraces() {
+	logger, _ := NewProduction()
+	logger.Error("with exception", zap.Error(errors.New("internal error")), ErrorReport(runtime.Caller(0)))
+
+	logger, _ = NewProduction(WrapCore(ServiceName("service"), ReportAllErrors(true)))
+	logger.Error("with exception", zap.Error(errors.New("internal error")))
+
+	logger, _ = NewProduction(WrapCore(ServiceName("service"), SkipFmtStackTraces(true)))
+	logger.Error("without exception", zap.Error(errors.New("internal error")))
+
+	// Output:
 }
