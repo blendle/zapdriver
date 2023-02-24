@@ -20,7 +20,11 @@ func (e stackdriverFmtError) Error() string {
 	if e.err == nil {
 		return ""
 	}
-	if stackTrace, ok := errors.Cause(e.err).(stackTracer); ok {
+	stackTrace, ok := errors.Cause(e.err).(stackTracer)
+	if !ok {
+		stackTrace, ok = e.err.(stackTracer)
+	}
+	if ok {
 		buf := bytes.NewBufferString(e.err.Error())
 		// routine id and state aren't available in pure go, so we hard-coded these
 		// required for stackdrivers runtime.Stack() format parsing

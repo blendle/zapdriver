@@ -1,11 +1,14 @@
 package zapdriver
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -41,23 +44,29 @@ testing.tRunner()
 }
 
 func ExampleUseFmtStackTracing() {
-	zap.RegisterSink("example", func(u *url.URL) (zap.Sink, error) {
-		return os.Stdout, nil
-	})
+	z, b := testZap()
+	z.Error("An error occurred", zap.Error(erroring()))
+
+	fmt.Println(makeStackTraceStable(b.String()))
+	// Output: {"severity":"ERROR","caller":"zapdriver/error_test.go:48","message":"An error occurred","exception":"bar: foo","logging.googleapis.com/labels":{},"logging.googleapis.com/sourceLocation":{"file":"/error_test.go","line":"48","function":"github.com/blendle/zapdriver.ExampleUseFmtStackTracing"}}
+}
+
+func testZap() (*zap.Logger, *bytes.Buffer) {
+	var b = bytes.NewBuffer(nil)
 	conf := NewDevelopmentConfig()
-	conf.OutputPaths = []string{"stdout"} // to generate example output
+	conf.EncoderConfig.TimeKey = ""
+	zap.RegisterSink("example", func(u *url.URL) (zap.Sink, error) { return testSink{b}, nil })
+	conf.OutputPaths = []string{"example://"} // to generate example output
+
 	z, err := conf.Build(WrapCore(
 		FmtStackTraces(true),
-		ReportAllErrors(true),
-		ServiceName("my-service"),
+		ReportAllErrors(false),
 	))
 
 	if err != nil {
 		panic(err)
 	}
-
-	z.Error("An error occurred", zap.Error(erroring()))
-	// Output: foo
+	return z, b
 }
 
 func erroring() error {
@@ -65,6 +74,21 @@ func erroring() error {
 }
 
 func makeStackTraceStable(str string) string {
-	re := regexp.MustCompile(`(?m)^\t.+(\/\S+):\d+ \+0x.+$`)
-	return re.ReplaceAllString(str, "\t${1}:42 +0x1337")
+	re := regexp.MustCompile(`(?m)^[\t\\t].+(\/\S+):\d+ \+0x.+$`)
+	str = re.ReplaceAllString(str, "\t${1}:42 +0x1337")
+	dir, _ := os.Getwd()
+	str = strings.ReplaceAll(str, dir, "")
+	return str
+}
+
+type testSink struct {
+	io.Writer
+}
+
+func (testSink) Close() error {
+	return nil
+}
+
+func (testSink) Sync() error {
+	return nil
 }
